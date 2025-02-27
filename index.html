@@ -1,0 +1,418 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Tic-Tac-Toe</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .cell {
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      cursor: pointer;
+      border: 2px solid #ccc;
+      user-select: none;
+    }
+    .cell:hover {
+      background-color: #eee;
+    }
+    .winning-cell {
+      background-color: #gold;
+    }
+    .dark .cell {
+      border-color: #555;
+    }
+    .dark .cell:hover {
+      background-color: #444;
+    }
+    .dark .winning-cell {
+      background-color: #90ee90;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+
+  <header class="flex justify-between items-center p-4">
+    <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Tic-Tac-Toe</h1>
+    <div class="flex items-center space-x-4">
+      <button id="theme-toggle" aria-label="Toggle Dark Mode" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
+        <svg id="theme-icon" class="w-6 h-6 text-gray-800 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+      </button>
+      <button id="multiplayer-toggle" aria-label="Toggle Multiplayer Mode" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
+        <svg class="w-6 h-6 text-gray-800 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="flex justify-center space-x-8 p-4">
+    <div class="text-lg text-gray-700 dark:text-gray-300">Player: <span id="player-score">0</span></div>
+    <div class="text-lg text-gray-700 dark:text-gray-300">
+        <span id="opponent-label">AI</span>: <span id="ai-score">0</span>
+    </div>
+  </section>
+
+  <div class="text-center text-xl text-gray-700 dark:text-gray-300 mb-4" id="game-status">Player's Turn</div>
+
+  <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto" id="board">
+    <button class="cell" data-index="0"></button>
+    <button class="cell" data-index="1"></button>
+    <button class="cell" data-index="2"></button>
+    <button class="cell" data-index="3"></button>
+    <button class="cell" data-index="4"></button>
+    <button class="cell" data-index="5"></button>
+    <button class="cell" data-index="6"></button>
+    <button class="cell" data-index="7"></button>
+    <button class="cell" data-index="8"></button>
+  </div>
+
+  <div class="flex justify-center space-x-4 mt-6">
+    <button class="btn bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition focus:outline-none" id="restart-btn">Restart</button>
+    <button class="btn bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition focus:outline-none" id="undo-btn">Undo</button>
+    <button class="btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition focus:outline-none" id="sound-toggle">Sound: On</button>
+    <select id="difficulty" class="px-4 py-2 rounded border border-gray-300 dark:bg-gray-700 dark:text-gray-300 focus:outline-none">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard" selected>Hard</option>
+    </select>
+  </div>
+
+    <div class="flex justify-center mt-4">
+        <button id="symbol-toggle" class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition focus:outline-none">
+            Player Symbol: <span id="player-symbol-display">X</span>
+        </button>
+    </div>
+
+  <audio id="click-sound" src="https://www.fesliyanstudios.com/play-mp3/387"></audio>
+  <audio id="victory-sound" src="https://www.fesliyanstudios.com/play-mp3/4386"></audio>
+
+  <script>
+    let board = Array(9).fill(null);
+    let currentPlayer = 'X';
+    let playerScore = 0;
+    let aiScore = 0;
+    let gameActive = true;
+    let difficulty = 'hard';
+    let isMultiplayer = false;
+    let soundEnabled = true;
+    let playerSymbol = 'X';
+    let opponentSymbol = 'O';
+    let moveHistory = [];
+
+    const cells = document.querySelectorAll('.cell');
+    const gameStatus = document.getElementById('game-status');
+    const playerScoreDisplay = document.getElementById('player-score');
+    const aiScoreDisplay = document.getElementById('ai-score');
+    const restartBtn = document.getElementById('restart-btn');
+    const undoBtn = document.getElementById('undo-btn');
+    const soundToggleBtn = document.getElementById('sound-toggle');
+    const difficultySelect = document.getElementById('difficulty');
+    const multiplayerToggleBtn = document.getElementById('multiplayer-toggle');
+    const opponentLabel = document.getElementById('opponent-label');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const symbolToggleBtn = document.getElementById('symbol-toggle');
+    const playerSymbolDisplay = document.getElementById('player-symbol-display');
+    const clickSound = document.getElementById('click-sound');
+    const victorySound = document.getElementById('victory-sound');
+
+
+    function updateDisplay() {
+        playerScoreDisplay.textContent = playerScore;
+        aiScoreDisplay.textContent = aiScore;
+        gameStatus.textContent = gameActive ? `${getCurrentPlayerName()}'s Turn` : getGameResult();
+        opponentLabel.textContent = isMultiplayer ? "Player 2" : "AI";
+    }
+
+    function getCurrentPlayerName() {
+        if (isMultiplayer) {
+            return currentPlayer === playerSymbol ? "Player 1" : "Player 2";
+        }
+        return currentPlayer === playerSymbol ? "Player" : "AI";
+    }
+
+    function getGameResult() {
+        const winner = checkWinner();
+        if (winner) {
+            return `${winner === playerSymbol ? (isMultiplayer ? 'Player 1' : 'Player') : (isMultiplayer ? 'Player 2' : 'AI')} Wins!`;
+        } else if (board.every(cell => cell !== null)) {
+            return "It's a Draw!";
+        }
+        return '';
+    }
+
+    function handleClick(index) {
+        if (gameActive && board[index] === null) {
+            makeMove(index, currentPlayer);
+            if (!checkWinner() && board.some(cell => cell === null)) {
+                switchPlayer();
+                if (!isMultiplayer) {
+                    setTimeout(aiMove, 300);
+                }
+            }
+        }
+    }
+
+    function makeMove(index, player) {
+        board[index] = player;
+        moveHistory.push(index);
+        renderBoard();
+        playSound(clickSound);
+        const winner = checkWinner();
+        if (winner) {
+            highlightWinningCells(winner);
+            updateScores(winner);
+            gameActive = false;
+            playSound(victorySound);
+        } else if (board.every(cell => cell !== null)) {
+            gameActive = false;
+        }
+        updateDisplay();
+    }
+
+    function switchPlayer() {
+        currentPlayer = currentPlayer === playerSymbol ? opponentSymbol : playerSymbol;
+    }
+
+    function aiMove() {
+      if (!gameActive) return;
+
+      let index;
+      switch (difficulty) {
+        case 'easy':
+          index = randomMove();
+          break;
+        case 'medium':
+          index = mediumMove();
+          break;
+        case 'hard':
+          index = minimax(board, opponentSymbol).index;
+          break;
+      }
+
+      makeMove(index, currentPlayer);
+      if (gameActive) switchPlayer();
+    }
+
+    function randomMove() {
+      let availableMoves = board.reduce((acc, cell, index) => {
+        if (cell === null) acc.push(index);
+        return acc;
+      }, []);
+      return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+    }
+
+    function mediumMove() {
+        // Try to win
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === null) {
+                board[i] = opponentSymbol;
+                if (checkWinner() === opponentSymbol) {
+                    board[i] = null; // Reset for the actual move
+                    return i;
+                }
+                board[i] = null;
+            }
+        }
+
+        // Block player from winning
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === null) {
+                board[i] = playerSymbol;
+                if (checkWinner() === playerSymbol) {
+                    board[i] = null;
+                    return i;
+                }
+                board[i] = null;
+            }
+        }
+
+        return randomMove();
+    }
+
+    function minimax(newBoard, player) {
+      const availSpots = newBoard.filter(s => s === null);
+
+      if (checkWinner(newBoard) === playerSymbol) {
+        return { score: -10 };
+      } else if (checkWinner(newBoard) === opponentSymbol) {
+        return { score: 10 };
+      } else if (availSpots.length === 0) {
+        return { score: 0 };
+      }
+
+      const moves = [];
+      for (let i = 0; i < availSpots.length; i++) {
+        const move = {};
+        move.index = newBoard.indexOf(null, availSpots[i]);
+        newBoard[move.index] = player;
+
+        if (player === opponentSymbol) {
+          const result = minimax(newBoard, playerSymbol);
+          move.score = result.score;
+        } else {
+          const result = minimax(newBoard, opponentSymbol);
+          move.score = result.score;
+        }
+
+        newBoard[move.index] = null;
+        moves.push(move);
+      }
+
+      let bestMove;
+      if (player === opponentSymbol) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      }
+
+      return moves[bestMove];
+    }
+
+    function checkWinner(currentBoard = board) {
+      const winPatterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+      ];
+
+      for (const pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (currentBoard[a] && currentBoard[a] === currentBoard[b] && currentBoard[a] === currentBoard[c]) {
+          return currentBoard[a];
+        }
+      }
+      return null;
+    }
+
+    function highlightWinningCells(winner) {
+        const winPatterns = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        for (const pattern of winPatterns) {
+            const [a, b, c] = pattern;
+            if (board[a] === winner && board[b] === winner && board[c] === winner) {
+                cells[a].classList.add('winning-cell');
+                cells[b].classList.add('winning-cell');
+                cells[c].classList.add('winning-cell');
+            }
+        }
+    }
+
+    function updateScores(winner) {
+      if (winner === playerSymbol) {
+        playerScore++;
+      } else {
+        aiScore++;
+      }
+    }
+
+    function renderBoard() {
+      cells.forEach((cell, index) => {
+        cell.textContent = board[index];
+        cell.classList.remove('winning-cell');
+      });
+    }
+
+    function restartGame() {
+      board = Array(9).fill(null);
+      currentPlayer = playerSymbol;
+      gameActive = true;
+      moveHistory = [];
+      renderBoard();
+      updateDisplay();
+      if (!isMultiplayer && currentPlayer === opponentSymbol) {
+          aiMove();
+      }
+    }
+
+    function undoMove() {
+        if (moveHistory.length > 0 && (isMultiplayer || currentPlayer === playerSymbol)) {
+            const lastMoveIndex = moveHistory.pop();
+            board[lastMoveIndex] = null;
+
+            if (!isMultiplayer) {
+                // If it's single-player, undo the AI's last move as well
+                if(moveHistory.length > 0) {
+                    const aiLastMoveIndex = moveHistory.pop();
+                    board[aiLastMoveIndex] = null;
+                }
+            } else {
+                switchPlayer();
+            }
+
+            renderBoard();
+            updateDisplay();
+        }
+    }
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        soundToggleBtn.textContent = `Sound: ${soundEnabled ? 'On' : 'Off'}`;
+    }
+
+    function playSound(audioElement) {
+        if (soundEnabled) {
+            audioElement.currentTime = 0;
+            audioElement.play();
+        }
+    }
+
+    function toggleMultiplayer() {
+        isMultiplayer = !isMultiplayer;
+        restartGame();
+    }
+
+    function toggleTheme() {
+        const isDarkMode = document.documentElement.classList.toggle('dark');
+        themeIcon.innerHTML = isDarkMode
+            ? `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>`
+            : `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+    }
+
+    function toggleSymbol() {
+        playerSymbol = playerSymbol === 'X' ? 'O' : 'X';
+        opponentSymbol = playerSymbol === 'X' ? 'O' : 'X';
+        playerSymbolDisplay.textContent = playerSymbol;
+        restartGame();
+    }
+
+    cells.forEach((cell, index) => {
+      cell.addEventListener('click', () => handleClick(index));
+    });
+
+    restartBtn.addEventListener('click', restartGame);
+    undoBtn.addEventListener('click', undoMove);
+    soundToggleBtn.addEventListener('click', toggleSound);
+    difficultySelect.addEventListener('change', (event) => {
+      difficulty = event.target.value;
+      restartGame();
+    });
+    multiplayerToggleBtn.addEventListener('click', toggleMultiplayer);
+    themeToggleBtn.addEventListener('click', toggleTheme);
+    symbolToggleBtn.addEventListener('click', toggleSymbol);
+
+    updateDisplay();
+
+  </script>
+</body>
+</html>
